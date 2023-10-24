@@ -21,6 +21,7 @@ import org.knowm.xchange.dto.Order.OrderType;
 import org.knowm.xchange.dto.account.Balance;
 import org.knowm.xchange.dto.account.Fee;
 import org.knowm.xchange.dto.account.FundingRecord;
+import org.knowm.xchange.dto.account.FundingRecord.Type;
 import org.knowm.xchange.dto.account.OpenPosition;
 import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.account.Wallet;
@@ -44,6 +45,7 @@ import org.knowm.xchange.kraken.dto.account.KrakenDepositAddress;
 import org.knowm.xchange.kraken.dto.account.KrakenLedger;
 import org.knowm.xchange.kraken.dto.account.KrakenTradeVolume;
 import org.knowm.xchange.kraken.dto.account.KrakenVolumeFee;
+import org.knowm.xchange.kraken.dto.account.LedgerType;
 import org.knowm.xchange.kraken.dto.marketdata.KrakenAsset;
 import org.knowm.xchange.kraken.dto.marketdata.KrakenAssetPair;
 import org.knowm.xchange.kraken.dto.marketdata.KrakenDepth;
@@ -484,8 +486,7 @@ public class KrakenAdapters {
         final Currency currency = adaptCurrency(krakenLedger.getAsset());
         if (currency != null) {
           final Date timestamp = new Date((long) (krakenLedger.getUnixTime() * 1000L));
-          final FundingRecord.Type type =
-              FundingRecord.Type.fromString(krakenLedger.getLedgerType().name());
+          final FundingRecord.Type type = adaptLedgerType(krakenLedger.getLedgerType());
           if (type != null) {
             final String internalId = krakenLedger.getRefId(); // or ledgerEntry.getKey()?
             FundingRecord fundingRecordEntry =
@@ -496,7 +497,7 @@ public class KrakenAdapters {
                     krakenLedger.getTransactionAmount(),
                     internalId,
                     null,
-                    FundingRecord.Type.fromString(krakenLedger.getLedgerType().name()),
+                    type,
                     FundingRecord.Status.COMPLETE,
                     krakenLedger.getBalance(),
                     krakenLedger.getFee(),
@@ -507,6 +508,34 @@ public class KrakenAdapters {
       }
     }
     return fundingRecords;
+  }
+
+  private static Type adaptLedgerType(LedgerType ledgerType) {
+    Type adoptedType = null;
+    switch (ledgerType) {
+      case WITHDRAWAL:
+        adoptedType = Type.WITHDRAWAL;
+        break;
+      case DEPOSIT:
+          adoptedType = Type.DEPOSIT;
+          break;
+      case SPEND:
+        adoptedType = Type.WITHDRAWAL;
+          break;
+      case RECEIVE:
+        adoptedType = Type.DEPOSIT;
+        break;
+      case CREDIT:
+      case TRADE:
+      case ADJUSTMENT:
+      case MARGIN:
+      case ROLLOVER:
+      case SETTLED:
+      case STAKING:
+      case TRANSFER:
+    }
+
+    return adoptedType;
   }
 
   public static OrderStatus adaptOrderStatus(KrakenOrderStatus status) {

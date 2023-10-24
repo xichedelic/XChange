@@ -452,6 +452,15 @@ public interface BinanceAuthenticated extends Binance {
       throws IOException, BinanceException;
 
   @GET
+  @Path("/sapi/v1/convert/tradeFlow")
+  ConvertHistoryResponse convertHistory(
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature);
+
+  @GET
   @Path("/sapi/v1/sub-account/transfer/subUserHistory")
   List<TransferSubUserHistory> transferSubUserHistory(
       @QueryParam("asset") String asset,

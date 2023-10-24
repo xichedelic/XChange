@@ -194,4 +194,18 @@ public class BinanceAccountServiceRaw extends BinanceBaseService {
         .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
         .call();
   }
+
+  public ConvertHistoryResponse getConvertHistory(Long startTime, Long endTime) throws IOException {
+    return decorateApiCall(
+        () ->
+            binance.convertHistory(
+                startTime,
+                endTime,
+                getTimestampFactory(),
+                super.apiKey,
+                super.signatureCreator))
+        .withRetry(retry("convertHistory"))
+        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+        .call();
+  }
 }

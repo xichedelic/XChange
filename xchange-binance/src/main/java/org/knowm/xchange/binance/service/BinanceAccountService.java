@@ -376,6 +376,34 @@ public class BinanceAccountService extends BinanceAccountServiceRaw implements A
                         .build()));
       }
 
+      super.getConvertHistory(startTime, endTime)
+          .getList()
+          .forEach(
+              a -> {
+                result.add(
+                    new FundingRecord.Builder()
+                        .setInternalId(a.getOrderId().toString())
+                        .setDate(new Date(a.getCreateTime()))
+                        .setCurrency(Currency.getInstance(a.getFromAsset()))
+                        .setAmount(a.getFromAmount())
+                        .setType(Type.WITHDRAWAL)
+                        .setStatus(Status.COMPLETE)
+                        .build()
+                );
+
+                result.add(
+                    new FundingRecord.Builder()
+                        .setInternalId(a.getOrderId().toString() + "-d")
+                        .setDate(new Date(a.getCreateTime()))
+                        .setCurrency(Currency.getInstance(a.getToAsset()))
+                        .setAmount(a.getToAmount())
+                        .setType(Type.DEPOSIT)
+                        .setStatus(Status.COMPLETE)
+                        .build()
+                );
+              }
+          );
+
       return result;
     } catch (BinanceException e) {
       throw BinanceErrorAdapter.adapt(e);
