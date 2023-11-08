@@ -14,8 +14,8 @@ public class MainTest {
     Exchange e = new CoinbaseExchange();
     ExchangeSpecification exchangeSpec = e.getDefaultExchangeSpecification();
 
-    exchangeSpec.setApiKey("0aKBWdZiA0Dqx5Eb");
-    exchangeSpec.setSecretKey("5g6pp6MsrAF3hrTjc3skoV94YIx2nG0o");
+    exchangeSpec.setApiKey("iUPlcRn97r2hdQ33");
+    exchangeSpec.setSecretKey("wzLF4jELG5JpPQv4KmUK0YECArTiqlhU");
 
     Exchange exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpec);
 

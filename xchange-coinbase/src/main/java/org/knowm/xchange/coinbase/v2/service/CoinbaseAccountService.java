@@ -13,6 +13,8 @@ import org.knowm.xchange.Exchange;
 import org.knowm.xchange.coinbase.v2.dto.CoinbaseAmount;
 import org.knowm.xchange.coinbase.v2.dto.account.CoinbaseAccountData;
 import org.knowm.xchange.coinbase.v2.dto.account.CoinbaseAccountData.CoinbaseAccount;
+import org.knowm.xchange.coinbase.v2.dto.account.CoinbaseTransactionsResponse;
+import org.knowm.xchange.coinbase.v2.dto.account.transactions.CoinbaseTransactionV2;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.dto.account.AccountInfo;
 import org.knowm.xchange.dto.account.Balance;
@@ -20,10 +22,12 @@ import org.knowm.xchange.dto.account.FundingRecord;
 import org.knowm.xchange.dto.account.FundingRecord.Status;
 import org.knowm.xchange.dto.account.FundingRecord.Type;
 import org.knowm.xchange.dto.account.Wallet;
+import org.knowm.xchange.dto.trade.UserTrades;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.account.AccountService;
+import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.DefaultWithdrawFundsParams;
 import org.knowm.xchange.service.trade.params.TradeHistoryParams;
 import org.knowm.xchange.service.trade.params.WithdrawFundsParams;
@@ -123,6 +127,93 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
           );
         });
 
+        CoinbaseTradeHistoryParams cthp = new CoinbaseTradeHistoryParams();
+        cthp.setLimit(300);
+
+        CoinbaseTradeService ts = (CoinbaseTradeService) exchange.getTradeService();
+        UserTrades buys = ts.getBuyTradeHistory(cthp, account.getId());
+        UserTrades sells = ts.getSellTradeHistory(cthp, account.getId());
+
+        buys.getUserTrades().forEach(ut -> {
+          fundingRecords.add(
+              new FundingRecord.Builder()
+                  .setInternalId(ut.getOrderId())
+                  .setDate(ut.getTimestamp())
+                  .setAmount(ut.getOriginalAmount())
+                  .setFee(BigDecimal.ZERO)
+                  .setCurrency(ut.getInstrument().getBase())
+                  .setType(Type.DEPOSIT)
+                  .setStatus(Status.COMPLETE)
+                  .build()
+          );
+
+          if (!BigDecimal.ZERO.equals(ut.getFeeAmount())) {
+            fundingRecords.add(
+                new FundingRecord.Builder()
+                    .setInternalId(ut.getOrderId() + "-fee")
+                    .setDate(ut.getTimestamp())
+                    .setAmount(ut.getFeeAmount().multiply(BigDecimal.valueOf(-1)))
+                    .setFee(BigDecimal.ZERO)
+                    .setCurrency(ut.getFeeCurrency())
+                    .setType(Type.DEPOSIT)
+                    .setStatus(Status.COMPLETE)
+                    .build()
+            );
+          }
+        });
+
+
+        sells.getUserTrades().forEach(ut -> {
+          fundingRecords.add(
+              new FundingRecord.Builder()
+                  .setInternalId(ut.getOrderId())
+                  .setDate(ut.getTimestamp())
+                  .setAmount(ut.getOriginalAmount())
+                  .setFee(BigDecimal.ZERO)
+                  .setCurrency(ut.getInstrument().getBase())
+                  .setType(Type.WITHDRAWAL)
+                  .setStatus(Status.COMPLETE)
+                  .build()
+          );
+
+          if (!BigDecimal.ZERO.equals(ut.getFeeAmount())) {
+            fundingRecords.add(
+                new FundingRecord.Builder()
+                    .setInternalId(ut.getOrderId() + "-fee")
+                    .setDate(ut.getTimestamp())
+                    .setAmount(ut.getFeeAmount().multiply(BigDecimal.valueOf(-1)))
+                    .setFee(BigDecimal.ZERO)
+                    .setCurrency(ut.getFeeCurrency())
+                    .setType(Type.WITHDRAWAL)
+                    .setStatus(Status.COMPLETE)
+                    .build()
+            );
+          }
+        });
+
+        CoinbaseTransactionsResponse transactions = super.getTransactions(
+            account.getId());
+
+        transactions
+            .getData()
+            .stream()
+            .filter(f -> f.getType().equals("send"))
+            .forEach(transaction -> {
+          fundingRecords.add(
+              new FundingRecord.Builder()
+                  .setInternalId(transaction.getId())
+                  .setDate(java.sql.Timestamp.valueOf(transaction.getCreatedAt().toLocalDateTime()))
+                  .setAmount(transaction.getAmount().getAmount())
+                  .setFee(BigDecimal.ZERO)
+                  .setCurrency(Currency.getInstance(transaction.getAmount().getCurrency()))
+                  .setType(transaction.getAmount().getAmount().signum() > 0 ? Type.DEPOSIT : Type.WITHDRAWAL)
+                  .setStatus(Status.COMPLETE)
+                  .build()
+          );
+        });
+
+
+        System.out.println("bla");
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
