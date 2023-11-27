@@ -6,6 +6,7 @@ import java.sql.Date;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -86,10 +87,16 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
   public List<FundingRecord> getFundingHistory(TradeHistoryParams params) throws IOException {
     List<FundingRecord> fundingRecords = new LinkedList<>();
     List<CoinbaseAccount> accounts = getCoinbaseAccounts();
+    Map<CoinbaseAccount, List<Object>> debugMap = new HashMap<>();
 
     accounts.forEach(account -> {
+      List<Object> o = new LinkedList<>();
+      debugMap.put(account, o);
+
       try {
         Map deposits = super.getDeposits(account.getId());
+        o.add(deposits);
+
         List<Map> depositsData = (List) deposits.get("data");
         depositsData.forEach(deposit -> {
           Map amount = (Map)deposit.get("amount");
@@ -104,11 +111,14 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
                   .setCurrency(Currency.getInstance((String)amount.get("currency")))
                   .setType(Type.DEPOSIT)
                   .setStatus(Status.COMPLETE)
+                  .setDescription(account.getName() + " deposits")
                   .build()
           );
         });
 
         Map withdrawls = super.getWithdrawals(account.getId());
+        o.add(withdrawls);
+
         List<Map> withdrawlsData = (List) withdrawls.get("data");
         withdrawlsData.forEach(withdrawal -> {
           Map amount = (Map)withdrawal.get("amount");
@@ -123,6 +133,7 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
                   .setCurrency(Currency.getInstance((String)amount.get("currency")))
                   .setType(Type.WITHDRAWAL)
                   .setStatus(Status.COMPLETE)
+                  .setDescription(account.getName() + " withdrawls")
                   .build()
           );
         });
@@ -134,16 +145,20 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
         UserTrades buys = ts.getBuyTradeHistory(cthp, account.getId());
         UserTrades sells = ts.getSellTradeHistory(cthp, account.getId());
 
+        o.add(buys);
+        o.add(sells);
+
         buys.getUserTrades().forEach(ut -> {
           fundingRecords.add(
               new FundingRecord.Builder()
-                  .setInternalId(ut.getOrderId())
+                  .setInternalId(ut.getOrderId() + "-buy")
                   .setDate(ut.getTimestamp())
                   .setAmount(ut.getOriginalAmount())
                   .setFee(BigDecimal.ZERO)
                   .setCurrency(ut.getInstrument().getBase())
                   .setType(Type.DEPOSIT)
                   .setStatus(Status.COMPLETE)
+                  .setDescription(account.getName() + " buys")
                   .build()
           );
 
@@ -155,8 +170,9 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
                     .setAmount(ut.getFeeAmount().multiply(BigDecimal.valueOf(-1)))
                     .setFee(BigDecimal.ZERO)
                     .setCurrency(ut.getFeeCurrency())
-                    .setType(Type.DEPOSIT)
+                    .setType(Type.WITHDRAWAL)
                     .setStatus(Status.COMPLETE)
+                    .setDescription(account.getName() + " buys fee")
                     .build()
             );
           }
@@ -173,6 +189,7 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
                   .setCurrency(ut.getInstrument().getBase())
                   .setType(Type.WITHDRAWAL)
                   .setStatus(Status.COMPLETE)
+                  .setDescription(account.getName() + " sells")
                   .build()
           );
 
@@ -186,6 +203,7 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
                     .setCurrency(ut.getFeeCurrency())
                     .setType(Type.WITHDRAWAL)
                     .setStatus(Status.COMPLETE)
+                    .setDescription(account.getName() + " sells fee")
                     .build()
             );
           }
@@ -194,10 +212,12 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
         CoinbaseTransactionsResponse transactions = super.getTransactions(
             account.getId());
 
+        o.add(transactions);
+
         transactions
             .getData()
             .stream()
-            .filter(f -> f.getType().equals("send"))
+            .filter(f -> f.getType().equals("send") || f.getType().equals("trade"))
             .forEach(transaction -> {
           fundingRecords.add(
               new FundingRecord.Builder()
@@ -206,14 +226,31 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
                   .setAmount(transaction.getAmount().getAmount())
                   .setFee(BigDecimal.ZERO)
                   .setCurrency(Currency.getInstance(transaction.getAmount().getCurrency()))
-                  .setType(transaction.getAmount().getAmount().signum() > 0 ? Type.DEPOSIT : Type.WITHDRAWAL)
+                  .setType(getType(transaction))
                   .setStatus(Status.COMPLETE)
+                  .setDescription(account.getName() + " transactions " + transaction.getType())
                   .build()
           );
         });
 
+        transactions
+            .getData()
+            .stream()
+            .filter(f -> (f.getType().equals("sell") || f.getType().equals("buy")) && f.getNativeAmount().getAmount().signum() > 0)
+            .forEach(transaction -> fundingRecords.add(
+                new FundingRecord.Builder()
+                    .setInternalId(transaction.getId())
+                    .setDate(java.sql.Timestamp.valueOf(transaction.getCreatedAt().toLocalDateTime()))
+                    .setAmount(transaction.getNativeAmount().getAmount())
+                    .setFee(BigDecimal.ZERO)
+                    .setCurrency(Currency.getInstance(transaction.getNativeAmount().getCurrency()))
+                    .setType(getType(transaction))
+                    .setStatus(Status.COMPLETE)
+                    .setDescription(account.getName() + " transactions2 " + transaction.getType())
+                    .build()
+            ));
 
-        System.out.println("bla");
+        System.out.println("bla " + account.getName());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -221,6 +258,26 @@ public final class CoinbaseAccountService extends CoinbaseAccountServiceRaw
     });
 
     return fundingRecords;
+  }
+
+  private static Type getType(CoinbaseTransactionV2 transaction) {
+    if ("send".equals(transaction.getType())) {
+      return transaction.getAmount().getAmount().signum() > 0 ? Type.DEPOSIT : Type.WITHDRAWAL;
+    }
+
+    if ("trade".equals(transaction.getType())) {
+      return transaction.getAmount().getAmount().signum() > 0 ? Type.DEPOSIT : Type.WITHDRAWAL ;
+    }
+
+    if ("buy".equals(transaction.getType())) {
+      return transaction.getAmount().getAmount().signum() > 0 ? Type.WITHDRAWAL : Type.DEPOSIT ;
+    }
+
+    if ("sell".equals(transaction.getType())) {
+      return transaction.getAmount().getAmount().signum() > 0 ? Type.DEPOSIT : Type.WITHDRAWAL ;
+    }
+
+    return transaction.getAmount().getAmount().signum() > 0 ? Type.INTERNAL_DEPOSIT : Type.INTERNAL_WITHDRAWAL;
   }
 
 }

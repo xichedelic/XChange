@@ -50,7 +50,8 @@ public final class CoinbaseAdapters {
     final List<UserTrade> trades = new ArrayList<>();
 
     for (CoinbaseBuySell transaction : transactions) {
-      trades.add(adaptTrade(transaction, orderType));
+      if (transaction.getTransaction() != null)
+        trades.add(adaptTrade(transaction, orderType));
     }
 
     return new UserTrades(trades, TradeSortType.SortByTimestamp);
