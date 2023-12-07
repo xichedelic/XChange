@@ -2,6 +2,7 @@ package org.knowm.xchange.coinbase.v2.dto.account.transactions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.ZonedDateTime;
+import java.util.Map;
 import lombok.Getter;
 import org.knowm.xchange.coinbase.v2.dto.CoinbaseAmount;
 
@@ -19,9 +20,9 @@ public class CoinbaseTransactionV2 {
   private final String resource;
   private final String resourcePath;
   private final boolean instantExchange;
-  private final CoinbaseTransactionV2Field buy;
-  private final CoinbaseTransactionV2Field sell;
-  private final CoinbaseTransactionV2Field trade;
+  private final CoinbaseBuySell buy;
+  private final CoinbaseBuySell sell;
+  private final Map<String, Object> trade;
   private final CoinbaseTransactionV2FromField from;
   private final CoinbaseTransactionV2ToField to;
   private final CoinbaseTransactionV2NetworkField network;
@@ -41,9 +42,9 @@ public class CoinbaseTransactionV2 {
       @JsonProperty("resource") String resource,
       @JsonProperty("resource_path") String resourcePath,
       @JsonProperty("instant_exchange") boolean instantExchange,
-      @JsonProperty("buy") CoinbaseTransactionV2Field buy,
-      @JsonProperty("sell") CoinbaseTransactionV2Field sell,
-      @JsonProperty("trade") CoinbaseTransactionV2Field trade,
+      @JsonProperty("buy") CoinbaseBuySell buy,
+      @JsonProperty("sell") CoinbaseBuySell sell,
+      @JsonProperty("trade") Map<String, Object> trade,
       @JsonProperty("from") CoinbaseTransactionV2FromField from,
       @JsonProperty("to") CoinbaseTransactionV2ToField to,
       @JsonProperty("network") CoinbaseTransactionV2NetworkField network,

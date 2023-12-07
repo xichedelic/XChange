@@ -27,7 +27,7 @@ public class CoinbaseAccountServiceRaw extends CoinbaseBaseService {
     BigDecimal timestamp = coinbase.getTime(Coinbase.CB_VERSION_VALUE).getData().getEpoch();
 
     return coinbase.getTransactions(
-        Coinbase.CB_VERSION_VALUE, apiKey, signatureCreator2, timestamp, accountId);
+        Coinbase.CB_VERSION_VALUE, apiKey, signatureCreator2, timestamp, accountId, "all");
   }
 
   public Map getDeposits(String accountId) throws IOException {
