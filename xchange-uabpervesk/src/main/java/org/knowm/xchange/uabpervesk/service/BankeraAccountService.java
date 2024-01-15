@@ -1,30 +1,24 @@
 package org.knowm.xchange.uabpervesk.service;
 
 import java.io.IOException;
-import java.sql.Date;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.currency.Currency;
+import org.knowm.xchange.dto.account.AccountInfo;
 import org.knowm.xchange.dto.account.FundingRecord;
 import org.knowm.xchange.dto.account.FundingRecord.Status;
 import org.knowm.xchange.dto.account.FundingRecord.Type;
+import org.knowm.xchange.service.account.AccountService;
 import org.knowm.xchange.service.trade.params.TradeHistoryParams;
 import org.knowm.xchange.uabpervesk.BankeraAdapters;
-import org.knowm.xchange.dto.account.AccountInfo;
-import org.knowm.xchange.service.account.AccountService;
-import org.knowm.xchange.uabpervesk.MxCamtConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BankeraAccountService extends BankeraAccountServiceRaw implements AccountService {
   protected final Logger LOG = LoggerFactory.getLogger(getClass());
-  MxCamtConverter mxCamtConverter;
   public BankeraAccountService(Exchange exchange) {
     super(exchange);
-    mxCamtConverter = new MxCamtConverter();
   }
 
   @Override
